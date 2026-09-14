@@ -1,14 +1,3 @@
-import mysql.connector
+from api.router import app
 
-mydb = mysql.connector.connect(
-    host="localhost",
-    user="glitcher",
-    passwd="glitcher",
-    database="cimsapi"
-)
-
-mycursor = mydb.cursor()
-
-mycursor.execute("SHOW DATABASES")
-for db in mycursor:
-    print(db)
+__all__ = ["app"]
