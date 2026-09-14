@@ -2,7 +2,42 @@ import mysql.connector
 from fastapi import HTTPException
 
 from core.database.migration import get_database
+from core.ai.pipeline import AIPipeline
 from request.chat_request import ChatRequest
+
+_pipeline = None
+
+
+def _get_pipeline():
+	global _pipeline
+	if _pipeline is None:
+		_pipeline = AIPipeline()
+	return _pipeline
+
+
+def _generate_response(message: str, user_id: int) -> str:
+	database = get_database()
+	cursor = database.cursor(dictionary=True)
+	try:
+		cursor.execute(
+			"SELECT userinput, response FROM chats WHERE user_id = %s ORDER BY id DESC LIMIT 20",
+			(user_id,),
+		)
+		history_rows = list(reversed(cursor.fetchall()))
+	finally:
+		cursor.close()
+		database.close()
+
+	history = []
+	for row in history_rows:
+		history.extend([
+			{"role": "user", "content": row["userinput"]},
+			{"role": "assistant", "content": row["response"]},
+		])
+	try:
+		return _get_pipeline().respond(message, history)
+	except Exception as error:
+		raise HTTPException(status_code=502, detail="AI service is temporarily unavailable") from error
 
 
 def index(current_user):
@@ -20,12 +55,13 @@ def index(current_user):
 
 
 def store(request: ChatRequest, current_user):
+	answer = _generate_response(request.message, current_user["id"])
 	database = get_database()
 	cursor = database.cursor(dictionary=True)
 	try:
 		cursor.execute(
 			"INSERT INTO chats (user_id, userinput, response) VALUES (%s, %s, %s)",
-			(current_user["id"], request.userinput, request.response),
+			(current_user["id"], request.message, answer),
 		)
 		database.commit()
 		cursor.execute("SELECT * FROM chats WHERE id = %s", (cursor.lastrowid,))
@@ -55,6 +91,7 @@ def show(chat_id: int, current_user):
 
 
 def update(chat_id: int, request: ChatRequest, current_user):
+	answer = _generate_response(request.message, current_user["id"])
 	database = get_database()
 	cursor = database.cursor(dictionary=True)
 	try:
@@ -67,7 +104,7 @@ def update(chat_id: int, request: ChatRequest, current_user):
 			raise HTTPException(status_code=403, detail="You can only edit your own chats")
 		cursor.execute(
 			"UPDATE chats SET user_id = %s, userinput = %s, response = %s WHERE id = %s",
-			(chat["user_id"], request.userinput, request.response, chat_id),
+			(chat["user_id"], request.message, answer, chat_id),
 		)
 		database.commit()
 		cursor.execute("SELECT * FROM chats WHERE id = %s", (chat_id,))

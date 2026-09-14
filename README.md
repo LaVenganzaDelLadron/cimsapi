@@ -289,11 +289,11 @@ Valid severities: `low`, `medium`, `high`, `critical`.
 ## Chats
 
 ```bash
-# Create chat
+# Send a message to the AI assistant
 curl -X POST "$API/chats" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"user_id":1,"userinput":"What is my incident status?","response":"It is being investigated."}'
+  -d '{"message":"What is my incident status?"}'
 
 # List chats
 curl "$API/chats" -H "Authorization: Bearer $TOKEN"
@@ -301,17 +301,17 @@ curl "$API/chats" -H "Authorization: Bearer $TOKEN"
 # Get chat
 curl "$API/chats/1" -H "Authorization: Bearer $TOKEN"
 
-# Update chat
+# Send a new message for an existing chat record
 curl -X PUT "$API/chats/1" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"user_id":1,"userinput":"What is the latest update?","response":"The analyst is still investigating."}'
+  -d '{"message":"What is the latest update?"}'
 
 # Delete chat (admin)
 curl -X DELETE "$API/chats/1" -H "Authorization: Bearer $ADMIN_TOKEN"
 ```
 
-The service derives chat ownership from the authenticated user.
+The service derives chat ownership from the authenticated user and generates `response` through Groq. Clients must not submit the assistant response.
 
 ## Attachments
 
