@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 
 from request.signin_request import SigninRequest
 from request.signup_request import SignupRequest
-from services.authentication import signup, signin
+from services.authentication import signup, signin as authenticate
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -13,4 +13,4 @@ async def register(request: SignupRequest):
 
 @router.post("/signin")
 async def signin(request: SigninRequest):
-    return signin(request)
+    return authenticate(request)

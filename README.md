@@ -174,9 +174,9 @@ erDiagram
 
 `category_id`, `uploaded_by`, and `analyst_id` are currently logical relationships without explicit foreign-key constraints.
 
-## Authentication
+## Public Commands
 
-### Sign up
+### User signup
 
 Public signup always creates a regular `user`.
 
@@ -207,9 +207,14 @@ Save the returned token:
 ```bash
 export TOKEN="PASTE_ACCESS_TOKEN_HERE"
 export ADMIN_TOKEN="PASTE_ADMIN_ACCESS_TOKEN_HERE"
+export ANALYST_TOKEN="PASTE_ANALYST_ACCESS_TOKEN_HERE"
 ```
 
-## Categories
+## User Commands
+
+Users can create incidents, view their own incidents and chats, and send messages to the AI assistant.
+
+### Categories: list and view
 
 ```bash
 # List categories
@@ -217,7 +222,13 @@ curl "$API/categories" -H "Authorization: Bearer $TOKEN"
 
 # Get category
 curl "$API/categories/1" -H "Authorization: Bearer $TOKEN"
+```
 
+## Admin Commands
+
+### Categories: create, update, and delete
+
+```bash
 # Create category (admin)
 curl -X POST "$API/categories" \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
@@ -239,8 +250,9 @@ curl -X DELETE "$API/categories/1" \
 
 The authenticated user becomes the owner. The server controls `user_id` and initial assignment.
 
+### User: create and view own incidents
+
 ```bash
-# Create incident
 curl -X POST "$API/incidents" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
@@ -255,15 +267,21 @@ curl -X POST "$API/incidents" \
     "resolve_at": null
   }'
 
-# List incidents
 curl "$API/incidents" -H "Authorization: Bearer $TOKEN"
 
-# Get incident
 curl "$API/incidents/1" -H "Authorization: Bearer $TOKEN"
+```
 
-# Update incident
+### Analyst: view assigned incidents and update investigation status
+
+Analysts only see incidents assigned to them. They cannot assign incidents or close them.
+
+```bash
+curl "$API/incidents" \
+  -H "Authorization: Bearer $ANALYST_TOKEN"
+
 curl -X PUT "$API/incidents/1" \
-  -H "Authorization: Bearer $TOKEN" \
+  -H "Authorization: Bearer $ANALYST_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "category_id": 1,
@@ -273,11 +291,46 @@ curl -X PUT "$API/incidents/1" \
     "status": "investigating",
     "location": "Main office",
     "incident_date": "2026-09-14T10:00:00",
+    "resolve_at": null
+  }'
+```
+
+### Admin: review, assign, close, and delete incidents
+
+The `assigned_to` value must be the ID of an active analyst.
+
+```bash
+curl "$API/incidents" \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+
+curl -X PUT "$API/incidents/1" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "category_id": 1,
+    "title": "Laptop Wi-Fi issue",
+    "description": "The wireless adapter is failing intermittently.",
+    "severity": "high",
+    "status": "investigating",
+    "location": "Main office",
     "assigned_to": 2,
     "resolve_at": null
   }'
 
-# Delete incident (admin)
+curl -X PUT "$API/incidents/1" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "category_id": 1,
+    "title": "Laptop Wi-Fi issue",
+    "description": "The wireless adapter was repaired.",
+    "severity": "high",
+    "status": "closed",
+    "location": "Main office",
+    "assigned_to": 2,
+    "resolve_at": "2026-09-14T16:00:00"
+  }'
+
 curl -X DELETE "$API/incidents/1" \
   -H "Authorization: Bearer $ADMIN_TOKEN"
 ```
@@ -286,88 +339,114 @@ Valid statuses: `new`, `investigating`, `resolved`, `closed`.
 
 Valid severities: `low`, `medium`, `high`, `critical`.
 
-## Chats
+## Chat Commands by Role
+
+### User, analyst, or admin: chat with the AI assistant
 
 ```bash
-# Send a message to the AI assistant
 curl -X POST "$API/chats" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"message":"What is my incident status?"}'
 
-# List chats
 curl "$API/chats" -H "Authorization: Bearer $TOKEN"
 
-# Get chat
 curl "$API/chats/1" -H "Authorization: Bearer $TOKEN"
+```
 
-# Send a new message for an existing chat record
+Each user can see only their own chats. Admins can view all chats and delete chats.
+
+### Admin: delete a chat
+
+```bash
+curl -X DELETE "$API/chats/1" -H "Authorization: Bearer $ADMIN_TOKEN"
+```
+
+### User or admin: request a new AI response for a chat record
+
+```bash
 curl -X PUT "$API/chats/1" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"message":"What is the latest update?"}'
 
-# Delete chat (admin)
-curl -X DELETE "$API/chats/1" -H "Authorization: Bearer $ADMIN_TOKEN"
 ```
 
 The service derives chat ownership from the authenticated user and generates `response` through Groq. Clients must not submit the assistant response.
 
-## Attachments
+## Attachment Commands by Role
+
+### Analyst or admin: create and update attachment metadata
 
 ```bash
-# Create attachment record (admin or analyst)
 curl -X POST "$API/attachments" \
-  -H "Authorization: Bearer $TOKEN" \
+  -H "Authorization: Bearer $ANALYST_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"incident_id":1,"filename":"error-log.txt","filepath":"/uploads/error-log.txt","filetype":"text/plain"}'
+```
 
-# List attachments
+### User, analyst, or admin: view authorized attachments
+
+```bash
 curl "$API/attachments" -H "Authorization: Bearer $TOKEN"
 
-# Get attachment
 curl "$API/attachments/1" -H "Authorization: Bearer $TOKEN"
+```
 
-# Update attachment (admin or analyst)
+### Analyst or admin: update attachment metadata
+
+```bash
 curl -X PUT "$API/attachments/1" \
-  -H "Authorization: Bearer $TOKEN" \
+  -H "Authorization: Bearer $ANALYST_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"incident_id":1,"filename":"updated-log.txt","filepath":"/uploads/updated-log.txt","filetype":"text/plain"}'
+```
 
-# Delete attachment (admin)
+### Admin: delete attachment metadata
+
+```bash
 curl -X DELETE "$API/attachments/1" -H "Authorization: Bearer $ADMIN_TOKEN"
 ```
 
 `uploaded_by` is derived from the authenticated user. This API stores attachment metadata and paths; it does not upload file bytes.
 
-## Investigation Notes
+## Investigation Note Commands by Role
+
+### Analyst or admin: create and update notes
 
 ```bash
-# Create note (admin or assigned analyst)
 curl -X POST "$API/investigation-notes" \
-  -H "Authorization: Bearer $TOKEN" \
+  -H "Authorization: Bearer $ANALYST_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"incident_id":1,"note":"The wireless driver is outdated.","recommendation":"Update the driver and restart the device."}'
+```
 
-# List notes
+### Analyst or admin: view authorized notes
+
+```bash
 curl "$API/investigation-notes" -H "Authorization: Bearer $TOKEN"
 
-# Get note
 curl "$API/investigation-notes/1" -H "Authorization: Bearer $TOKEN"
+```
 
-# Update note (admin or assigned analyst)
+### Analyst or admin: update a note
+
+```bash
 curl -X PUT "$API/investigation-notes/1" \
-  -H "Authorization: Bearer $TOKEN" \
+  -H "Authorization: Bearer $ANALYST_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"incident_id":1,"note":"The driver was updated successfully.","recommendation":"Monitor the device for 24 hours."}'
+```
 
-# Delete note (admin)
+### Admin: delete a note
+
+```bash
 curl -X DELETE "$API/investigation-notes/1" -H "Authorization: Bearer $ADMIN_TOKEN"
 ```
 
 `analyst_id` is derived from the authenticated user.
 
-## User Administration
+## Admin User-Management Commands
 
 All user-management endpoints are admin-only.
 
