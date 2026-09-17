@@ -34,6 +34,8 @@ class Settings:
     max_tool_output_chars: int
     max_file_size: int
     max_file_list_items: int
+    attachment_storage_dir: str
+    attachment_max_size: int
     max_output_lines: int
     reserve_response_tokens: int
     max_api_attempts: int
@@ -122,6 +124,9 @@ def get_settings() -> Settings:
         max_file_list_items=_positive_int_with_legacy_name(
             "DEFAULT_MAX_FILE_LIST_ITEMS", "DEFAULT_MAX_LIST_ITEMS", 50
         ),
+        attachment_storage_dir=os.getenv("ATTACHMENT_STORAGE_DIR", "uploads/attachments").strip()
+        or "uploads/attachments",
+        attachment_max_size=_positive_int("ATTACHMENT_MAX_SIZE", 10 * 1024 * 1024),
         max_output_lines=_positive_int("DEFAULT_MAX_OUTPUT_LINES", 100),
         reserve_response_tokens=_positive_int("DEFAULT_RESERVE_RESPONSE_TOKENS", 1000),
         max_api_attempts=_positive_int("GROQ_MAX_API_ATTEMPTS", 5),

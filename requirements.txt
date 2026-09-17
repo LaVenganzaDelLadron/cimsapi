@@ -6,3 +6,4 @@ PyJWT
 pydantic[email]
 python-dotenv
 httpx
+python-multipart

@@ -376,14 +376,16 @@ The service derives chat ownership from the authenticated user and generates `re
 
 ## Attachment Commands by Role
 
-### Analyst or admin: create and update attachment metadata
+### Analyst or admin: upload an attachment
 
 ```bash
 curl -X POST "$API/attachments" \
   -H "Authorization: Bearer $ANALYST_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"incident_id":1,"filename":"error-log.txt","filepath":"/uploads/error-log.txt","filetype":"text/plain"}'
+  -F "incident_id=1" \
+  -F "file=@/path/to/error-log.txt"
 ```
+
+The `file` form field opens a native file picker in Swagger UI and other API clients. The server stores the file under `ATTACHMENT_STORAGE_DIR`, generates the filepath, and derives the filename and MIME type; clients do not submit attachment paths.
 
 ### User, analyst, or admin: view authorized attachments
 
@@ -408,7 +410,7 @@ curl -X PUT "$API/attachments/1" \
 curl -X DELETE "$API/attachments/1" -H "Authorization: Bearer $ADMIN_TOKEN"
 ```
 
-`uploaded_by` is derived from the authenticated user. This API stores attachment metadata and paths; it does not upload file bytes.
+`uploaded_by` is derived from the authenticated user. Uploaded bytes are stored under `ATTACHMENT_STORAGE_DIR` (default: `uploads/attachments`) and are limited by `ATTACHMENT_MAX_SIZE` (default: 10 MiB).
 
 ## Investigation Note Commands by Role
 

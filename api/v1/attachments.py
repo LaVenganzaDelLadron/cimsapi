@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, Form, UploadFile
 
 from core.security import get_current_user
 from request.attachment_request import AttachmentRequest
@@ -13,8 +13,12 @@ def list_attachments(current_user=Depends(get_current_user)):
 
 
 @router.post("", status_code=201)
-def create_attachment(request: AttachmentRequest, current_user=Depends(get_current_user)):
-    return store(request, current_user)
+async def create_attachment(
+    incident_id: int = Form(...),
+    file: UploadFile = File(...),
+    current_user=Depends(get_current_user),
+):
+    return await store(incident_id, file, current_user)
 
 
 @router.get("/{attachment_id}")
